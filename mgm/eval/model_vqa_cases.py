@@ -7,6 +7,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import torch
 import json
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import shortuuid
@@ -57,55 +58,30 @@ def get_options(row, options):
 
 
 def eval_model(args):
-    # Model
-    disable_torch_init()
-    model_path = os.path.expanduser(args.model_path)
-    model_name = get_model_name_from_path(model_path)
-    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name)
+    def cases_predict(text_file: str='/fs/nexus-scratch/yliang17/Research/VLM/cases_study/test_cases/test.json', ):
 
-
-    # Load the MMBench dataset
-    dataset_name = 'HuggingFaceM4/MMBench'
-    data_type = 'validation'
-    questions = load_dataset(path=dataset_name, split=f'{data_type}')
-    # # TSV file
-    # questions = pd.read_table(os.path.expanduser(args.question_file))
-    # questions = get_chunk(questions, args.num_chunks, args.chunk_idx)
-
-    answers_file = os.path.expanduser(args.answers_file)
-    os.makedirs(os.path.dirname(answers_file), exist_ok=True)
-    ans_file = open(answers_file, "w")
-
-    if 'plain' in model_name and 'finetune' not in model_name.lower() and 'mmtag' not in args.conv_mode:
-        args.conv_mode = args.conv_mode + '_mmtag'
-        print(f'It seems that this is a plain model, but it is not using a mmtag prompt, auto switching to {args.conv_mode}.')
-
-    # for index, row in tqdm(questions.iterrows(), total=len(questions)):
-    for index, row in enumerate(tqdm(questions)):
-        options = get_options(row, all_options)
-        cur_option_char = all_options[:len(options)]
+        with open(text_file, 'r') as f:
+            sample = json.load(f)
+        print(sample['question_id'])
+        
+        options = sample['options']
+        cur_option_char = sample['option_char']
 
         if args.all_rounds:
             num_rounds = len(options)
         else:
             num_rounds = 1
 
-        category = row['category']
-        l2_category = row['l2-category']
-        if 'perception' not in l2_category:
-            continue
+        d_type = sample['d_type']
+        d_task = sample['d_task']
 
         for round_idx in range(num_rounds):
-            idx = row['index']
-            question = row['question']
-            hint = row['hint']
-            answer = row['answer']
-            image = load_image_from_base64(row['image'])
-            if not is_none(hint):
-                question = hint + '\n' + question
-            for option_char, option in zip(all_options[:len(options)], options):
-                question = question + '\n' + option_char + '. ' + option
-            qs = cur_prompt = question
+            idx = sample['question_id']
+            cur_prompt = sample['prompt']
+            answer = sample['answer'].replace('(', '').replace(')', '')
+            img_file = sample['image_path']
+            image = Image.open(img_file)
+            qs = cur_prompt
             
             if hasattr(model, "update_prompt"):
                 model.update_prompt([[cur_prompt]])
@@ -196,12 +172,13 @@ def eval_model(args):
                     use_cache=True)
 
             outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
-
+            print(outputs)
             ans_id = shortuuid.uuid()
             ans_file.write(json.dumps({"question_id": idx,
                                     "round_id": round_idx,
-                                    "category": category, 
-                                    "l2-category": l2_category, 
+                                    "d_type": d_type, 
+                                    "d_task": d_task, 
+                                    "image_path": img_file, 
                                     "prompt": cur_prompt,
                                     "text": outputs,
                                     "answer": answer, 
@@ -209,12 +186,31 @@ def eval_model(args):
                                     "option_char": cur_option_char,
                                     "answer_id": ans_id,
                                     "model_id": model_name,
-                                    "metadata": {}}) + "\n")
+                                    "metadata": {}}, ensure_ascii=False, indent=4) + "\n")
             ans_file.flush()
 
             # rotate options
             options = options[1:] + options[:1]
             cur_option_char = cur_option_char[1:] + cur_option_char[:1]
+        return 
+
+    # Model
+    disable_torch_init()
+    model_path = os.path.expanduser(args.model_path)
+    model_name = get_model_name_from_path(model_path)
+    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name)
+
+    answers_file = os.path.expanduser(args.answers_file)
+    os.makedirs(os.path.dirname(answers_file), exist_ok=True)
+    ans_file = open(answers_file, "a+")
+
+    if 'plain' in model_name and 'finetune' not in model_name.lower() and 'mmtag' not in args.conv_mode:
+        args.conv_mode = args.conv_mode + '_mmtag'
+        print(f'It seems that this is a plain model, but it is not using a mmtag prompt, auto switching to {args.conv_mode}.')
+
+    import pdb;pdb.set_trace()
+    cases_predict()
+        
     ans_file.close()
 
 if __name__ == "__main__":

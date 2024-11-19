@@ -14,10 +14,10 @@
 CKPT="MGM/MGM-7B"
 SPLIT="MMBench_DEV_EN"
 
-CUDA_VISIBLE_DEVICES=0 python -m mgm.eval.model_vqa_mmbench \
+CUDA_VISIBLE_DEVICES=0 python -m mgm.eval.model_vqa_cases \
     --model-path ./work_dirs/$CKPT \
-    --question-file ./data/MGM-Eval/MMB/$SPLIT.tsv \
-    --answers-file ./data/MGM-Eval/MMB/answers/$SPLIT/$CKPT.jsonl \
+    --question-file ./data/MGM-Eval/CVB/$SPLIT.tsv \
+    --answers-file ./data/MGM-Eval/CVB/cases/$SPLIT/$CKPT.jsonl \
     --single-pred-prompt \
     --temperature 0 \
     --conv-mode vicuna_v1 

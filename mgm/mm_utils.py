@@ -8,6 +8,9 @@ from mgm.constants import IMAGE_TOKEN_INDEX
 
 
 def load_image_from_base64(image):
+    missing_padding = len(image) % 4
+    if missing_padding:
+        image += b'='* (4 - missing_padding)
     return Image.open(BytesIO(base64.b64decode(image)))
 
 

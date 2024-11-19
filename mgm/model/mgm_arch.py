@@ -26,7 +26,7 @@ import os
 import transformers
 import safetensors
 from transformers.deepspeed import is_deepspeed_zero3_enabled
-import deepspeed
+# import deepspeed
 
 from .multimodal_encoder.builder import build_vision_tower, build_vision_tower_aux
 from .multimodal_projector.builder import build_vision_projector

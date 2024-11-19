@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import os
 import json
 import logging
-import deepspeed
+# import deepspeed
 from pathlib import Path
 from open_clip.factory import load_state_dict, get_model_config
 from open_clip.model import CLIPVisionCfg, CLIPTextCfg, _build_vision_tower, convert_to_custom_text_state_dict, resize_pos_embed
